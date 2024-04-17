@@ -12,6 +12,7 @@
         zIndex: block.zIndex
       }"
       @click="increaseZIndex(block)"
+      @mousedown="startDrag($event, block)"
     >
       Title {{ index + 1 }}
       <div class="resize-handle" @mousedown="startResize($event, block)"></div>
@@ -20,7 +21,7 @@
 </template>
 
 <script setup lang="ts">
-import { Ref, ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import { getBlocksFromLocalStorage, saveBlocksToLocalStorage } from '@/utils/blocks';
 
 interface Block {
@@ -32,6 +33,7 @@ interface Block {
   zIndex: number;
 }
 
+
 const blocks: Ref<Block[]> = ref(getBlocksFromLocalStorage());
 
 let startX: number | null = null;
@@ -40,6 +42,43 @@ let startWidth: number | null = null;
 let startHeight: number | null = null;
 let isResizing = false;
 let activeBlockId: string | null = null;
+let startLeft: number | null = null;
+let startTop: number | null = null;
+let isDragging = false;
+
+const startDrag = (event: MouseEvent, block: Block) => {
+  if (isResizing) return;
+  increaseZIndex(block);
+  isDragging = true;
+  startX = event.clientX;
+  startY = event.clientY;
+  startLeft = block.left;
+  startTop = block.top;
+  activeBlockId = block.id;
+  document.addEventListener('mousemove', dragBlock);
+  document.addEventListener('mouseup', endDrag);
+};
+
+const dragBlock = (event: MouseEvent) => {
+  if (!isDragging || !startX || !startY || !startLeft || !startTop || !activeBlockId) return;
+
+  const offsetX = event.clientX - startX;
+  const offsetY = event.clientY - startY;
+
+  const index = blocks.value.findIndex((block) => block.id === activeBlockId);
+  if (index !== -1) {
+    blocks.value[index].left = startLeft + offsetX;
+    blocks.value[index].top = startTop + offsetY;
+  }
+};
+
+const endDrag = () => {
+  isDragging = false;
+  activeBlockId = null;
+  saveBlocksToLocalStorage(blocks.value);
+  document.removeEventListener('mousemove', dragBlock);
+  document.removeEventListener('mouseup', endDrag);
+};
 
 const startResize = (event: MouseEvent, block: Block) => {
   isResizing = true;
@@ -52,7 +91,7 @@ const startResize = (event: MouseEvent, block: Block) => {
   document.addEventListener('mouseup', endResize);
 };
 
-const resizeBlock = (event) => {
+const resizeBlock = (event: MouseEvent) => {
   if (!isResizing || !startX || !startY || !startWidth || !startHeight || !activeBlockId) return;
 
   const offsetX = event.clientX - startX;
@@ -78,7 +117,7 @@ const increaseZIndex = (block: Block) => {
     return Math.max(maxZIndex, currentBlock.zIndex);
   }, 0) + 1;
   saveBlocksToLocalStorage(blocks.value);
-}
+};
 </script>
 
 <style scoped>
