@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="transaction-list">
     <h1 class="header">Transactions</h1>
 
     <div class="button-container">
@@ -80,6 +80,9 @@
 </script>
 
 <style>
+  .transaction-list {
+    padding: 30px 40px;
+  }
   .header {
     font-weight: 700;
     font-size: 32px;

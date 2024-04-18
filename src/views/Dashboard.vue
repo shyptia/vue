@@ -1,7 +1,8 @@
 <template>
+  <CustomButton v-if="blocks.length < 5" text="Return deleted block to dashboard" variant="warning" @click="handleReturnDeletedBlock" />
   <div class="container">
     <div
-      v-for="(block, index) in blocks"
+      v-for="block in blocks"
       :key="block.id"
       class="block"
       :style="{
@@ -11,113 +12,104 @@
         left: block.left + 'px',
         zIndex: block.zIndex
       }"
-      @click="increaseZIndex(block)"
+      @click="handleIncreaseZIndex(block)"
       @mousedown="startDrag($event, block)"
+      @dblclick="handleDeleteBlock(block)"
     >
-      Title {{ index + 1 }}
+      {{ block.id }}
       <div class="resize-handle" @mousedown="startResize($event, block)"></div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, type Ref } from 'vue';
-import { getBlocksFromLocalStorage, saveBlocksToLocalStorage } from '@/utils/blocks';
+import { ref, type Ref } from 'vue'
+import { getBlocksFromLocalStorage, type Block } from '@/utils/blocks'
+import CustomButton from '../components/CustomButton.vue'
+import { saveItemToLocalStorage } from '@/utils/localStorage';
+import {increaseZIndex, deleteBlock, returnDeletedBlock } from '@/utils/blockOperations'
 
-interface Block {
-  id: string;
-  width: number;
-  height: number;
-  top: number;
-  left: number;
-  zIndex: number;
-}
+const blocks: Ref<Block[]> = ref(getBlocksFromLocalStorage({key: 'blocks'}))
 
-
-const blocks: Ref<Block[]> = ref(getBlocksFromLocalStorage());
-
-let startX: number | null = null;
-let startY: number | null = null;
-let startWidth: number | null = null;
-let startHeight: number | null = null;
-let isResizing = false;
-let activeBlockId: string | null = null;
-let startLeft: number | null = null;
-let startTop: number | null = null;
-let isDragging = false;
+let startX: number | null = null
+let startY: number | null = null
+let startWidth: number | null = null
+let startHeight: number | null = null
+let isResizing = false
+let activeBlockId: string | null = null
+let startLeft: number | null = null
+let startTop: number | null = null
+let isDragging = false
 
 const startDrag = (event: MouseEvent, block: Block) => {
-  if (isResizing) return;
-  increaseZIndex(block);
-  isDragging = true;
-  startX = event.clientX;
-  startY = event.clientY;
-  startLeft = block.left;
-  startTop = block.top;
-  activeBlockId = block.id;
-  document.addEventListener('mousemove', dragBlock);
-  document.addEventListener('mouseup', endDrag);
-};
+  if (isResizing) return
+  increaseZIndex({blocks, block})
+  isDragging = true
+  startX = event.clientX
+  startY = event.clientY
+  startLeft = block.left
+  startTop = block.top
+  activeBlockId = block.id
+  document.addEventListener('mousemove', dragBlock)
+  document.addEventListener('mouseup', endDrag)
+}
 
 const dragBlock = (event: MouseEvent) => {
-  if (!isDragging || !startX || !startY || !startLeft || !startTop || !activeBlockId) return;
+  if (!isDragging || !startX || !startY || !startLeft || !startTop || !activeBlockId) return
 
-  const offsetX = event.clientX - startX;
-  const offsetY = event.clientY - startY;
+  const offsetX = event.clientX - startX
+  const offsetY = event.clientY - startY
 
-  const index = blocks.value.findIndex((block) => block.id === activeBlockId);
+  const index = blocks.value.findIndex((block) => block.id === activeBlockId)
   if (index !== -1) {
-    blocks.value[index].left = startLeft + offsetX;
-    blocks.value[index].top = startTop + offsetY;
+    blocks.value[index].left = startLeft + offsetX
+    blocks.value[index].top = startTop + offsetY
   }
-};
+}
 
 const endDrag = () => {
-  isDragging = false;
-  activeBlockId = null;
-  saveBlocksToLocalStorage(blocks.value);
-  document.removeEventListener('mousemove', dragBlock);
-  document.removeEventListener('mouseup', endDrag);
-};
+  isDragging = false
+  activeBlockId = null
+  saveItemToLocalStorage({key: 'blocks', value: blocks.value})
+  document.removeEventListener('mousemove', dragBlock)
+  document.removeEventListener('mouseup', endDrag)
+}
 
 const startResize = (event: MouseEvent, block: Block) => {
-  isResizing = true;
-  startX = event.clientX;
-  startY = event.clientY;
-  startWidth = block.width;
-  startHeight = block.height;
-  activeBlockId = block.id;
-  document.addEventListener('mousemove', resizeBlock);
-  document.addEventListener('mouseup', endResize);
-};
+  isResizing = true
+  startX = event.clientX
+  startY = event.clientY
+  startWidth = block.width
+  startHeight = block.height
+  activeBlockId = block.id
+  document.addEventListener('mousemove', resizeBlock)
+  document.addEventListener('mouseup', endResize)
+}
 
 const resizeBlock = (event: MouseEvent) => {
-  if (!isResizing || !startX || !startY || !startWidth || !startHeight || !activeBlockId) return;
+  if (!isResizing || !startX || !startY || !startWidth || !startHeight || !activeBlockId) return
 
-  const offsetX = event.clientX - startX;
-  const offsetY = event.clientY - startY;
+  const offsetX = event.clientX - startX
+  const offsetY = event.clientY - startY
 
-  const index = blocks.value.findIndex((block) => block.id === activeBlockId);
+  const index = blocks.value.findIndex((block) => block.id === activeBlockId)
   if (index !== -1) {
-    blocks.value[index].width = startWidth + offsetX;
-    blocks.value[index].height = startHeight + offsetY;
+    blocks.value[index].width = startWidth + offsetX
+    blocks.value[index].height = startHeight + offsetY
   }
-};
+}
 
 const endResize = () => {
-  isResizing = false;
-  activeBlockId = null;
-  saveBlocksToLocalStorage(blocks.value);
-  document.removeEventListener('mousemove', resizeBlock);
-  document.removeEventListener('mouseup', endResize);
-};
+  isResizing = false
+  activeBlockId = null
+  saveItemToLocalStorage({key: 'blocks', value: blocks.value})
+  document.removeEventListener('mousemove', resizeBlock)
+  document.removeEventListener('mouseup', endResize)
+}
 
-const increaseZIndex = (block: Block) => {
-  block.zIndex = blocks.value.reduce((maxZIndex, currentBlock) => {
-    return Math.max(maxZIndex, currentBlock.zIndex);
-  }, 0) + 1;
-  saveBlocksToLocalStorage(blocks.value);
-};
+const handleIncreaseZIndex = (block: Block) => increaseZIndex({blocks, block})
+const handleDeleteBlock = (block: Block) =>  deleteBlock({blocks, block})
+const handleReturnDeletedBlock = () => returnDeletedBlock({blocks})
 </script>
 
 <style scoped>
